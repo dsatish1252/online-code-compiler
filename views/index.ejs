@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Online Code Compiler</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/loader.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1><i class="fas fa-code"></i> Online Code Compiler</h1>
+            <div class="language-selector">
+                <label for="language"><i class="fas fa-cog"></i> Language:</label>
+                <select id="language" name="languageId">
+                    <option value="54">C++</option>
+                    <option value="62">Java</option>
+                    <option value="71">Python</option>
+                    <option value="63">JavaScript</option>
+                </select>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Panel - Code Editor -->
+            <div class="left-panel">
+                <div class="panel-header">
+                    <h3><i class="fas fa-edit"></i> Code Editor</h3>
+                    <form action="/save" method="POST" id="save-form">
+                        
+                        <input type="text" id="filename" name="filename" required placeholder="Enter file name">
+                        <input type="hidden" name="code" id="code">
+                        <input type="hidden" name="language" id="language-hidden">
+                        <button type="submit">Save</button>      
+                        <% if (message) { %>
+                            <p>
+                                <%= message %>
+                            </p>
+                            <% } %>
+                    </form>
+                    <form id="view-form" action="/view-file" method="POST">
+                        <label for="view-filename">Choose a file:</label>
+                        <select name="filename" id="view-filename" required>
+                            <% codeFiles.forEach(file=> { %>
+                                <option value="<%= file.filename %>">
+                                    <%= file.filename %>
+                                </option>
+                                <% }) %>
+                        </select>
+                        <button type="submit">View</button>
+                    </form>
+                      
+                    <button id="fullscreen-btn" class="icon-btn" title="Toggle Fullscreen">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+                <div id="editor" class="code-editor"></div>
+                <div class="editor-footer">
+                    <button type="submit" id="run-btn" class="run-button">
+                        <i class="fas fa-play"></i> Run Code
+                    </button>
+                    <button id="clear-btn" class="clear-button">
+                        <i class="fas fa-trash"></i> Clear
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Panel - Input/Output -->
+            <div class="right-panel">
+                <!-- Input Section -->
+                <div class="input-section">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-keyboard"></i> Input</h3>
+                        <button id="clear-input-btn" class="icon-btn" title="Clear Input">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <textarea id="input" placeholder="Enter your input here..." rows="8"></textarea>
+                </div>
+
+                <!-- Output Section -->
+                <div class="output-section">
+                    <div class="panel-header">
+                        <h3><i class="fas fa-terminal"></i> Output</h3>
+                        <div class="output-controls">
+                            <button id="copy-output-btn" class="icon-btn" title="Copy Output">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            <button id="clear-output-btn" class="icon-btn" title="Clear Output">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <pre id="output" class="output-display">Ready to run your code...</pre>
+                    <div id="loading" class="loading hidden">
+                        <i class="fas fa-spinner fa-spin"></i> Running code...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+
+    <script>
+        let editor;
+        let isFullscreen = false;
+        document.getElementById("save-form").addEventListener("submit", function (e) {
+                const code = editor.getValue();
+                const languageId = document.getElementById("language").value;
+
+                document.getElementById("code").value = code;
+                document.getElementById("language-hidden").value = languageId;
+            });
+
+            
+
+        // Initialize Monaco Editor
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs' } });
+        require(['vs/editor/editor.main'], function () {
+            editor = monaco.editor.create(document.getElementById('editor'), {
+                value: `// 👋 Welcome to the Online Code Compiler!
+// You can write your code here and run it using the "Run" button below.
+// Choose your preferred language from the dropdown.
+// Enter custom input in the "Input" box if needed.
+
+// Happy coding! 🚀`,
+                language: 'javascript',
+                theme: 'vs-dark',
+                fontSize: 14,
+                minimap: { enabled: true },
+                automaticLayout: true,
+                scrollBeyondLastLine: false,
+                wordWrap: 'on'
+            });
+        });
+
+        // Language change handler
+        document.getElementById('language').addEventListener('change', function () {
+            const lang = this.value;
+            let langMap = {
+                54: 'cpp',
+                62: 'java',
+                71: 'python',
+                63: 'javascript'
+            };
+
+            // Set sample code for each language
+            let sampleCode = {
+                54: `#include <iostream>
+using namespace std;
+
+int main() {
+    cout << "Hello, World!" << endl;
+    return 0;
+}`,
+                62: `public class Main {
+    public static void main(String[] args) {
+        System.out.println("Hello, World!");
+    }
+}`,
+                71: `print("Hello, World!")
+
+# Enter your Python code here`,
+                63: `console.log("Hello, World!");
+
+// Enter your JavaScript code here`
+            };
+
+            monaco.editor.setModelLanguage(editor.getModel(), langMap[lang]);
+            editor.setValue(sampleCode[lang]);
+        });
+
+        // Run code
+        document.getElementById('run-btn').addEventListener('click', async function (e) {
+            e.preventDefault();
+            const code = editor.getValue();
+            const input = document.getElementById('input').value;
+            const languageId = document.getElementById('language').value;
+
+            // Show loading
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('output').textContent = '';
+
+            try {
+                const res = await fetch('/compile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code, input, languageId })
+                });
+
+                const data = await res.json();
+                document.getElementById('output').textContent =
+                    data.stdout || data.stderr || data.compile_output || 'No output generated';
+
+                // Add error styling if there's an error
+                const outputEl = document.getElementById('output');
+                if (data.stderr || data.compile_output) {
+                    outputEl.classList.add('error');
+                } else {
+                    outputEl.classList.remove('error');
+                }
+            } catch (error) {
+                document.getElementById('output').textContent = 'Error: Unable to compile code. Please try again.';
+                document.getElementById('output').classList.add('error');
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+            }
+        });
+
+        document.getElementById('view-form').addEventListener('submit', async function (e) {
+                e.preventDefault();
+
+                const filename = document.getElementById('view-filename').value;
+
+                try {
+                    const response = await fetch('/view-file', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ filename }),
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        editor.setValue(data.code);
+
+                        // Update language dropdown and Monaco language
+                        document.getElementById('language').value = data.language;
+
+                        const langMap = {
+                            54: 'cpp',
+                            62: 'java',
+                            71: 'python',
+                            63: 'javascript'
+                        };
+
+                        monaco.editor.setModelLanguage(editor.getModel(), langMap[data.language] || 'plaintext');
+                    } else {
+                        alert(data.message);
+                    }
+                } catch (err) {
+                    alert('Failed to load file content.');
+                }
+            });
+
+
+        // Clear editor
+        document.getElementById('clear-btn').addEventListener('click', function () {
+            editor.setValue('');
+        });
+
+        // Clear input
+        document.getElementById('clear-input-btn').addEventListener('click', function () {
+            document.getElementById('input').value = '';
+        });
+
+        // Clear output
+        document.getElementById('clear-output-btn').addEventListener('click', function () {
+            document.getElementById('output').textContent = 'Ready to run your code...';
+            document.getElementById('output').classList.remove('error');
+        });
+
+        // Copy output
+        document.getElementById('copy-output-btn').addEventListener('click', function () {
+            const output = document.getElementById('output').textContent;
+            navigator.clipboard.writeText(output).then(() => {
+                // Visual feedback
+                const btn = this;
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i>';
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                }, 1000);
+            });
+        });
+
+        // Fullscreen toggle
+        document.getElementById('fullscreen-btn').addEventListener('click', function () {
+            const leftPanel = document.querySelector('.left-panel');
+            const rightPanel = document.querySelector('.right-panel');
+
+            if (!isFullscreen) {
+                leftPanel.style.width = '100%';
+                rightPanel.style.display = 'none';
+                this.innerHTML = '<i class="fas fa-compress"></i>';
+                isFullscreen = true;
+            } else {
+                leftPanel.style.width = '60%';
+                rightPanel.style.display = 'flex';
+                this.innerHTML = '<i class="fas fa-expand"></i>';
+                isFullscreen = false;
+            }
+
+            // Trigger editor resize
+            setTimeout(() => {
+                if (editor) editor.layout();
+            }, 100);
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function (e) {
+            // Ctrl/Cmd + Enter to run
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('run-btn').click();
+            }
+
+            // F11 for fullscreen
+            if (e.key === 'F11') {
+                e.preventDefault();
+                document.getElementById('fullscreen-btn').click();
+            }
+        });
+
+
+    </script>
+</body>
+
+</html>
